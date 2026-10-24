@@ -9,6 +9,8 @@ from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.enums import AppointmentStatus
 from app.schemas.appointment import AppointmentCreate, RescheduleRequest
+from app.core.config import settings
+
 
 async def get_doctor(db: AsyncSession, doctor_id: uuid.UUID) -> Doctor:
     result = await db.execute(select(Doctor).where(Doctor.id == doctor_id))
@@ -19,6 +21,12 @@ async def get_doctor(db: AsyncSession, doctor_id: uuid.UUID) -> Doctor:
 
 async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appointment:
     now = datetime.now(pytz.utc)
+    
+    if appt_in.start_time < now + timedelta(hours=1):
+        raise HTTPException(status_code=400, detail="Appointments must be booked at least 1 hour in advance.")
+    
+    if appt_in.start_time > now + timedelta(days=settings.MAX_DAYS_IN_ADVANCE):
+        raise HTTPException(status_code=400, detail=f"Appointments cannot be booked more than {settings.MAX_DAYS_IN_ADVANCE} days in advance.")
     
     if appt_in.start_time < now + timedelta(hours=1):
         raise HTTPException(status_code=400, detail="Appointments must be booked at least 1 hour in advance.")
@@ -125,3 +133,5 @@ async def get_patient_appointments(db: AsyncSession, patient_id: uuid.UUID, skip
     
     result = await db.execute(query)
     return result.scalars().all()
+
+

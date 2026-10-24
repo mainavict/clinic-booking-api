@@ -1,5 +1,33 @@
-"venv/" 
-"__pycache__/" 
-".env" 
-"*.pyc" 
-".pytest_cache/" 
+# Environment Variables (CRITICAL: Contains your DB password and Sentry DSN)
+.env
+.env.local
+.env.*.local
+
+# Python Virtual Environment
+venv/
+env/
+.venv/
+
+# Python compiled files and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing and Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE and Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -5,10 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from app.core.database import get_db
-from app.services.clinic_service import get_all_doctors, create_patient
+from app.services.clinic_service import get_all_doctors, create_patient,create_doctor
 from app.schemas.appointment import (
     AppointmentCreate, AppointmentResponse, CancelRequest, 
-    RescheduleRequest, AvailableSlot, DoctorResponse, PatientCreate, PatientResponse
+    RescheduleRequest, AvailableSlot, DoctorCreate, DoctorResponse, PatientCreate, PatientResponse
 )
 from app.services import appointment_service, availability_service
 from app.models.appointment import Appointment
@@ -61,3 +61,11 @@ async def get_appointment_details(appointment_id: uuid.UUID, db: AsyncSession = 
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
     return appt
+
+@router.post("/doctors", response_model=DoctorResponse, status_code=status.HTTP_201_CREATED)
+async def register_doctor(doctor_in: DoctorCreate, db: AsyncSession = Depends(get_db)):
+    """
+    Registers a new doctor. Dynamically enforces the constraint that no more 
+    than 25% of doctors can be on lunch break at the same time.
+    """
+    return await create_doctor(db, doctor_in)
