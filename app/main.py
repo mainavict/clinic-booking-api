@@ -3,7 +3,7 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse,HTMLResponse
 from fastapi.exceptions import RequestValidationError, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -127,13 +127,77 @@ async def health_check():
         "version": "1.0.0"
     }
 
-@app.get("/", tags=["System"])
+@app.get("/", tags=["System"], response_class=HTMLResponse)
 async def root():
     """
-    Root endpoint with API information.
+    Root endpoint that renders a simple welcome page with clickable links.
     """
-    return {
-        "message": "Welcome to the Clinic Booking API",
-        "For   documentation": "/docs",
-        "health": "/health"
-    }
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Clinic Booking API</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background-color: #f8f9fa;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                color: #333;
+            }
+            .container {
+                background: white;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+                text-align: center;
+                max-width: 350px;
+                width: 100%;
+            }
+            h1 {
+                color: #2c3e50;
+                margin-bottom: 10px;
+                font-size: 22px;
+            }
+            p {
+                color: #6c757d;
+                margin-bottom: 25px;
+                font-size: 14px;
+            }
+            .link-btn {
+                display: block;
+                width: 100%;
+                padding: 12px;
+                margin: 10px 0;
+                background-color: #007bff;
+                color: white;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 600;
+                transition: background-color 0.2s;
+                box-sizing: border-box;
+            }
+            .link-btn:hover {
+                background-color: #0056b3;
+            }
+            .link-btn.success {
+                background-color: #28a745;
+            }
+            .link-btn.success:hover {
+                background-color: #218838;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <a href="/docs" class="link-btn">API Docs (Swagger)</a>
+            <a href="/health" class="link-btn success">Health Check</a>
+        </div>
+    </body>
+    </html>
+    """
