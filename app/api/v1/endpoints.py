@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -31,8 +31,14 @@ async def reschedule_appointment(appointment_id: uuid.UUID, req: RescheduleReque
     return await appointment_service.reschedule_appointment(db, appointment_id, req)
 
 @router.get("/patients/{patient_id}/appointments", response_model=List[AppointmentResponse])
-async def get_patient_appointments(patient_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    return await appointment_service.get_patient_appointments(db, patient_id)
+async def get_patient_appointments(
+    patient_id: uuid.UUID, 
+    skip: int = Query(0, ge=0, description="Number of records to skip (for pagination)"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of records to return"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Fetches upcoming appointments with basic pagination to ensure performance at scale."""
+    return await appointment_service.get_patient_appointments(db, patient_id, skip=skip, limit=limit)
 
 #core additional endpoints for doctor and patient management
 

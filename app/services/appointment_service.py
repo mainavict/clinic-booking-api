@@ -109,15 +109,19 @@ async def reschedule_appointment(db: AsyncSession, appointment_id: uuid.UUID, re
     await db.refresh(appt)
     return appt
 
-async def get_patient_appointments(db: AsyncSession, patient_id: uuid.UUID):
+async def get_patient_appointments(db: AsyncSession, patient_id: uuid.UUID, skip: int = 0, limit: int = 20):
+    """
+    Fetches upcoming appointments with pagination to prevent memory exhaustion at scale.
+    """
     now = datetime.now(pytz.utc)
+    
     query = select(Appointment).where(
         and_(
             Appointment.patient_id == patient_id,
             Appointment.start_time >= now,
             Appointment.status.in_([AppointmentStatus.BOOKED, AppointmentStatus.RESCHEDULED])
         )
-    ).order_by(Appointment.start_time.asc())
+    ).order_by(Appointment.start_time.asc()).offset(skip).limit(limit)
     
     result = await db.execute(query)
     return result.scalars().all()
