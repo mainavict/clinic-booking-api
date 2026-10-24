@@ -1,13 +1,37 @@
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
+
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.models import * 
 from app.api.v1.endpoints import router as api_router
 
+# ==========================================
+# SENTRY INITIALIZATION (Must be before FastAPI app)
+# ==========================================
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        integrations=[
+            StarletteIntegration(transaction_style="endpoint"),
+            FastApiIntegration(transaction_style="endpoint"),
+        ],
+        traces_sample_rate=1.0, # Captures 100% of transactions (lower this in real prod)
+        profiles_sample_rate=1.0,
+    )
+    print("✅ Sentry initialized for error tracking.")
+else:
+    print("⚠️ SENTRY_DSN not found in .env. Error tracking is disabled.")
+
+# ==========================================
+# APP LIFESPAN & INITIALIZATION
+# ==========================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -19,14 +43,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     lifespan=lifespan,
-    description="Production-ready Clinic Booking API with async PostgreSQL"
+    description="Production-ready Clinic Booking API with async PostgreSQL and Sentry monitoring"
 )
 
-# include the API router with the /api/v1 prefix
+# Include the API router with the /api/v1 prefix
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+# ==========================================
 # GLOBAL EXCEPTION HANDLERS
-
+# ==========================================
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -88,7 +113,7 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 # ==========================================
-# HEALTH CHECK ENDPOINT
+# HEALTH CHECK & ROOT ENDPOINTS
 # ==========================================
 
 @app.get("/health", tags=["System"])
