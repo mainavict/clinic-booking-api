@@ -1,5 +1,6 @@
 import uuid
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, HTTPException 
+from sqlalchemy import select 
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -7,7 +8,7 @@ from app.core.database import get_db
 from app.services.clinic_service import get_all_doctors, create_patient
 from app.schemas.appointment import (
     AppointmentCreate, AppointmentResponse, CancelRequest, 
-    RescheduleRequest, AvailableSlot,DoctorResponse, PatientCreate, PatientResponse
+    RescheduleRequest, AvailableSlot, DoctorResponse, PatientCreate, PatientResponse
 )
 from app.services import appointment_service, availability_service
 from app.models.appointment import Appointment
@@ -40,7 +41,7 @@ async def get_patient_appointments(
     """Fetches upcoming appointments with basic pagination to ensure performance at scale."""
     return await appointment_service.get_patient_appointments(db, patient_id, skip=skip, limit=limit)
 
-#core additional endpoints for doctor and patient management
+# Additional endpoints for doctor and patient management
 
 @router.get("/doctors", response_model=list[DoctorResponse])
 async def list_doctors(db: AsyncSession = Depends(get_db)):

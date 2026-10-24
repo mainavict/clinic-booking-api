@@ -70,7 +70,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """
-    Handles HTTP exceptions (like 404, 400, 409) with consistent formatting.
+    Handles HTTP exceptions (like 404, 400, 409) with consistent formatting.This  is  mainly  for the    front end   error you  do not want to expose raw error messages to the client. Instead, we provide a structured response with the status code and a user-friendly message.
     """
     return JSONResponse(
         status_code=exc.status_code,
@@ -134,6 +134,6 @@ async def root():
     """
     return {
         "message": "Welcome to the Clinic Booking API",
-        "docs": "/docs",
+        "For   documentation": "/docs",
         "health": "/health"
     }
