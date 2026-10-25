@@ -37,19 +37,29 @@ class AvailableSlot(BaseModel):
 # ==========================================
 # Doctor Schemas
 # ==========================================
+# Update DoctorCreate
 class DoctorCreate(BaseModel):
     name: str = Field(..., min_length=2)
-    working_hours_start: time
-    working_hours_end: time
+    email: EmailStr  # NEW
+    phone: Optional[str] = None  # NEW
+    working_hours_start: time = settings.DEFAULT_WORK_HOURS_START
+    working_hours_end: time = settings.DEFAULT_WORK_HOURS_END
+    lunch_start: time = time(13, 0)
+    lunch_end: time = time(13, 45)
     timezone: str = "UTC"
 
+# Update DoctorResponse
 class DoctorResponse(BaseModel):
     id: uuid.UUID
     name: str
+    email: str  # NEW
+    phone: Optional[str] = None  # NEW
     working_hours_start: time
     working_hours_end: time
+    lunch_start: time
+    lunch_end: time
     timezone: str
-
+    
     class Config:
         from_attributes = True
 
