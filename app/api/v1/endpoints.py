@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from app.core.database import get_db
-from app.services.clinic_service import get_all_doctors, create_patient,create_doctor
+from app.services.clinic_service import get_all_doctors,get_all_patients, create_patient,create_doctor
 from app.schemas.appointment import (
     AppointmentCreate, AppointmentResponse, CancelRequest, 
     RescheduleRequest, AvailableSlot, DoctorCreate, DoctorResponse, PatientCreate, PatientResponse
@@ -69,3 +69,23 @@ async def register_doctor(doctor_in: DoctorCreate, db: AsyncSession = Depends(ge
     than 25% of doctors can be on lunch break at the same time.
     """
     return await create_doctor(db, doctor_in)
+
+
+@router.get("/doctors/{doctor_id}/appointments", response_model=List[AppointmentResponse])
+async def get_doctor_appointments_endpoint(
+    doctor_id: uuid.UUID,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of records to return"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Fetches upcoming appointments for a specific doctor with pagination."""
+    return await appointment_service.get_doctor_appointments(db, doctor_id, skip=skip, limit=limit)
+
+@router.get("/patients", response_model=List[PatientResponse])
+async def list_patients(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of records to return"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns a paginated list of all patients. Useful for admin dashboards."""
+    return await get_all_patients(db, skip=skip, limit=limit)

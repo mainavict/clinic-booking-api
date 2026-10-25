@@ -19,6 +19,22 @@ async def get_doctor(db: AsyncSession, doctor_id: uuid.UUID) -> Doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
     return doctor
 
+
+async def get_doctor_appointments(db: AsyncSession, doctor_id: uuid.UUID, skip: int = 0, limit: int = 20):
+    """Fetches upcoming appointments for a specific doctor with pagination."""
+    now = datetime.now(pytz.utc)
+    query = select(Appointment).where(
+        and_(
+            Appointment.doctor_id == doctor_id,
+            Appointment.start_time >= now, # Only upcoming appointments
+            Appointment.status.in_([AppointmentStatus.BOOKED, AppointmentStatus.RESCHEDULED])
+        )
+    ).order_by(Appointment.start_time.asc()).offset(skip).limit(limit)
+    
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
 async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appointment:
     now = datetime.now(pytz.utc)
     

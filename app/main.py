@@ -46,12 +46,9 @@ app = FastAPI(
     description="Production-ready Clinic Booking API with async PostgreSQL and Sentry monitoring"
 )
 
-# Include the API router with the /api/v1 prefix
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# ==========================================
 # GLOBAL EXCEPTION HANDLERS
-# ==========================================
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -85,7 +82,7 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
     """
     Handles database errors gracefully without exposing internal details.
     """
-    # Log the actual error for debugging (in production, use a logging service)
+    # Log the actual error for debugging
     print(f"DATABASE ERROR: {exc}")
     
     return JSONResponse(
@@ -112,9 +109,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         },
     )
 
-# ==========================================
 # HEALTH CHECK & ROOT ENDPOINTS
-# ==========================================
 
 @app.get("/health", tags=["System"])
 async def health_check():

@@ -48,3 +48,10 @@ async def create_patient(db: AsyncSession, patient_in: PatientCreate):
     await db.commit()
     await db.refresh(new_patient)
     return new_patient
+
+
+async def get_all_patients(db: AsyncSession, skip: int = 0, limit: int = 20):
+    """Fetches a paginated list of all patients."""
+    query = select(Patient).order_by(Patient.name.asc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
