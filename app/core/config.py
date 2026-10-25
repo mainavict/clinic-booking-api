@@ -1,12 +1,18 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+from datetime import time
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Clinic Booking API"
     API_V1_STR: str = "/api/v1"
-    MAX_DAYS_IN_ADVANCE: int = 14   #default maximum days in advance for booking appointments
+    
     DATABASE_URL: str
-    SENTRY_DSN: Optional[str] = None #local dev doesn't crash if missing
+    SENTRY_DSN: Optional[str] = None
+    MAX_DAYS_IN_ADVANCE: int = 60
+    
+    # Default working hours for new doctors
+    DEFAULT_WORK_HOURS_START: time = time(9, 0)
+    DEFAULT_WORK_HOURS_END: time = time(17, 0)
 
     class Config:
         env_file = ".env"
