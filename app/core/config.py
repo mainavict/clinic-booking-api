@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     
     DATABASE_URL: str
     SENTRY_DSN: Optional[str] = None
-    MAX_DAYS_IN_ADVANCE: int = 60
+    MAX_DAYS_IN_ADVANCE: int = 14
     
     # Default working hours for new doctors
     DEFAULT_WORK_HOURS_START: time = time(9, 0)
