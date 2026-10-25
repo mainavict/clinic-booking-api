@@ -28,7 +28,7 @@ DUMMY_APPT_ID = str(uuid.uuid4())
 # ==========================================
 def test_health_check():
     response = client.get("/health")
-    assert response.status_code == 500
+    assert response.status_code == 200
     assert response.json()["status"] == "healthy"
 
 def test_root_endpoint():
