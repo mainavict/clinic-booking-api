@@ -1,6 +1,6 @@
 # Clinic Booking System API
 
-A production-ready, asynchronous REST API for a clinic booking system, built with FastAPI, SQLAlchemy (async), and PostgreSQL (Neon). 
+A asynchronous REST API for a clinic booking system, built with FastAPI, SQLAlchemy (async), and PostgreSQL (Neon). 
 
 This system is designed to handle concurrent medical bookings securely, enforce complex operational constraints (like staff lunch breaks), and scale gracefully as the clinic grows.
 
@@ -17,7 +17,7 @@ This system is designed to handle concurrent medical bookings securely, enforce 
 The system follows a Clean Architecture approach, separating concerns for maintainability and testability:
 - **API Layer (Routers)**: Handles HTTP requests, Pydantic validation, and response formatting.
 - **Service Layer**: Orchestrates complex business rules (30-min slots, 1-hour future buffer, lunch constraints, concurrency checks).
-- **Data Layer**: Async SQLAlchemy with PostgreSQL, utilizing connection pooling and pessimistic locking.
+- **Data Layer**: Async SQLAlchemy with PostgreSQL, utilizing connection pooling and pessimistic locking. **Database migrations are managed via Alembic**, ensuring safe, version-controlled schema evolution in production.
 - **Core Models**: 
   - `Doctor`: Includes working hours, staggered lunch breaks, contact info, and secure password hashing.
   - `Patient`: Includes contact info and secure password hashing.
@@ -56,8 +56,10 @@ The system follows a Clean Architecture approach, separating concerns for mainta
 - `GET /api/v1/doctors/{doctor_id}/availability` — Returns all available 30-minute slots for a doctor on a given date.
 - `PATCH /api/v1/appointments/{appointment_id}/cancel` — Cancels an appointment with a reason, freeing the slot.
 - `PATCH /api/v1/appointments/{appointment_id}/reschedule` — Moves an appointment to a new slot atomically, validating the new slot and freeing the old one.
-- **Bonus**: `GET /api/v1/patients/{patient_id}/appointments` — Upcoming appointments sorted by date, with offset/limit pagination for scalability.
-- **Bonus**: `POST /api/v1/doctors` & `POST /api/v1/patients` — For dynamic system setup and testing.
+- `GET /api/v1/doctors/{doctor_id}/appointments` — **NEW**: Fetches upcoming appointments for a specific doctor with pagination.
+- `GET /api/v1/patients/{patient_id}/appointments` — Upcoming appointments sorted by date, with offset/limit pagination for scalability.
+- `GET /api/v1/patients` — **NEW**: Returns a paginated list of all patients (useful for admin dashboards).
+- `POST /api/v1/doctors` & `POST /api/v1/patients` — For dynamic system setup and testing.
 
 ### Constraints & Validation
 - Validation failures return meaningful error messages with correct HTTP status codes (e.g., `400 Bad Request`, `409 Conflict`, `422 Unprocessable Entity`) via Global Exception Handlers.
@@ -77,8 +79,16 @@ The system follows a Clean Architecture approach, separating concerns for mainta
 - **Branch Trigger**: The `main` branch triggers both testing and deployment.
 - **Pipeline Description**: 
   - Located in `.github/workflows/ci-cd.yml`.
-  - **On Pull Request**: The pipeline checks out the code, sets up Python 3.11, installs dependencies, and runs the `pytest` suite to ensure booking logic and constraints hold.
+  - **On Pull Request**: The pipeline checks out the code, sets up Python 3.11, installs dependencies, provides dummy environment variables for Pydantic Settings validation, and runs the `pytest` suite to ensure booking logic and constraints hold.
   - **On Merge to `main`**: Once the tests pass and the PR is merged, the pipeline automatically triggers a deployment webhook (`RENDER_DEPLOY_HOOK`) to Render. Render then pulls the latest code, rebuilds the Docker container, and deploys the new version without manual intervention.
+
+### Testing the CI/CD Pipeline
+To verify the pipeline is working:
+1. Create a feature branch and make changes
+2. Open a Pull Request to `master`
+3. GitHub Actions will automatically run the test suite
+4. Green checkmarks ✅ indicate all tests passed
+5. Merging to `master` triggers automatic deployment to Render
 
 ---
 
