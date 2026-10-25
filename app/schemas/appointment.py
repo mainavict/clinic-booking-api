@@ -40,7 +40,7 @@ class DoctorCreate(BaseModel):
     name: str = Field(..., min_length=2)
     email: EmailStr
     phone: Optional[str] = None
-    hashed_password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=6)
     working_hours_start: time = settings.DEFAULT_WORK_HOURS_START
     working_hours_end: time = settings.DEFAULT_WORK_HOURS_END
     lunch_start: time = time(13, 0)
@@ -68,7 +68,7 @@ class PatientCreate(BaseModel):
     name: str = Field(..., min_length=2)
     email: EmailStr
     phone: Optional[str] = None
-    hashed_password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=6)
 
 class PatientResponse(BaseModel):
     id: uuid.UUID
