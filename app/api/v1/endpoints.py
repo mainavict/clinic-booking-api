@@ -81,11 +81,6 @@ async def get_doctor_appointments_endpoint(
     """Fetches upcoming appointments for a specific doctor with pagination."""
     return await appointment_service.get_doctor_appointments(db, doctor_id, skip=skip, limit=limit)
 
-
-
-
-
-
 @router.get("/patients", response_model=List[PatientResponse])
 async def list_patients(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
