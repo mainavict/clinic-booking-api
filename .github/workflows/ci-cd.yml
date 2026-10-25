@@ -10,6 +10,11 @@ jobs:
   test:
     name: Run Test Suite
     runs-on: ubuntu-latest
+    # NEW: Provide dummy environment variables so Pydantic Settings doesn't crash on import
+    env:
+      DATABASE_URL: "postgresql+asyncpg://user:password@localhost:5432/testdb"
+      SENTRY_DSN: "https://dummy@dummy.ingest.sentry.io/0"
+      MAX_DAYS_IN_ADVANCE: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
