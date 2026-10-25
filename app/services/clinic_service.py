@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from fastapi import HTTPException
-
+from app.core.config import settings 
 from app.models.doctor import Doctor
 from app.models.patient import Patient
 from app.schemas.appointment import DoctorCreate, PatientCreate
