@@ -1,10 +1,10 @@
-#  Clinic Booking System API
+# Clinic Booking System API
 
 A production-ready, asynchronous REST API for a clinic booking system, built with FastAPI, SQLAlchemy (async), and PostgreSQL (Neon). 
 
 This system is designed to handle concurrent medical bookings securely, enforce complex operational constraints (like staff lunch breaks), and scale gracefully as the clinic grows.
 
-##  Live Application & Submission Links
+## Live Application & Submission Links
 - **Public API URL**: https://clinic-booking-api-emay.onrender.com
 - **Interactive Swagger Docs**: https://clinic-booking-api-emay.onrender.com/docs
 - **GitHub Repository**: https://github.com/mainavict/clinic-booking-api
@@ -62,7 +62,7 @@ The system follows a Clean Architecture approach, separating concerns for mainta
 ### Constraints & Validation
 - Validation failures return meaningful error messages with correct HTTP status codes (e.g., `400 Bad Request`, `409 Conflict`, `422 Unprocessable Entity`) via Global Exception Handlers.
 - Code is sensibly structured into `api`, `services`, `models`, `schemas`, and `core` directories.
-- **Test Coverage**: Basic test coverage for the booking logic and validation is included in the `tests/` directory using `pytest` and `TestClient` with dependency overriding (mocking the database for fast, reliable CI/CD execution).
+- **Test Coverage**: Comprehensive test coverage (15 tests) for all endpoints and business logic edge cases is included in the `tests/` directory. Specifically, we test: health checks, invalid UUID handling, booking in the past, the 1-hour future buffer, the 60-day advance limit, lunch break violations, double-booking conflicts (409), duplicate patient emails, and the dynamic 25% staffing lunch rule. I utilized `pytest` with service-layer mocking (`unittest.mock.patch`) to ensure the CI/CD pipeline runs the full suite in under 2 seconds without requiring a live database connection. *(Note: AI was instrumental in helping me structure these tests, particularly in setting up the dependency overrides and mock patches for fast, isolated execution).*
 
 ---
 
@@ -78,7 +78,7 @@ The system follows a Clean Architecture approach, separating concerns for mainta
 - **Pipeline Description**: 
   - Located in `.github/workflows/ci-cd.yml`.
   - **On Pull Request**: The pipeline checks out the code, sets up Python 3.11, installs dependencies, and runs the `pytest` suite to ensure booking logic and constraints hold.
-  - **On Merge to `main`**: Once the tests pass and the PR is merged, the pipeline automatically triggers a deployment webhook  to Render. Render then pulls the latest code, rebuilds the Docker container, and deploys the new version without manual intervention.
+  - **On Merge to `main`**: Once the tests pass and the PR is merged, the pipeline automatically triggers a deployment webhook (`RENDER_DEPLOY_HOOK`) to Render. Render then pulls the latest code, rebuilds the Docker container, and deploys the new version without manual intervention.
 
 ---
 
@@ -87,6 +87,7 @@ The system follows a Clean Architecture approach, separating concerns for mainta
 **1. What did you use AI for across the four sections?**
 - Brainstorming edge cases for timezone handling and daylight saving shifts.
 - Generating boilerplate Pydantic schemas and the GitHub Actions CI/CD YAML.
+- **Writing the comprehensive `pytest` test suite**, specifically helping me set up `unittest.mock.patch` and database dependency overrides to test complex business logic (like the 25% lunch rule and double-booking) in isolation without needing a live database.
 - Structuring the README and reflection document for maximum clarity and professionalism.
 
 **2. Give one example where an AI suggestion improved your work. What did you prompt it with?**
