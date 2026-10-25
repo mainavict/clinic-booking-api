@@ -12,7 +12,7 @@ class Doctor(Base):
     # NEW: Contact Information
     email = Column(String, unique=True, index=True, nullable=False)
     phone = Column(String, nullable=True)
-    
+    hashed_password = Column(String, nullable=False) 
     working_hours_start = Column(Time, nullable=False)
     working_hours_end = Column(Time, nullable=False)
     lunch_start = Column(Time, nullable=False)
