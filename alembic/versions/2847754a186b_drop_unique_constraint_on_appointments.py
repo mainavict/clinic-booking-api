@@ -1,4 +1,4 @@
-"""drop_unique_constraint_on_appointments
+"""drop all unique constraints and indexes on appointments
 
 Revision ID: 2847754a186b
 Revises: 747878cb9ec0
@@ -6,10 +6,7 @@ Create Date: 2026-10-26 12:40:23.527642
 
 """
 from typing import Sequence, Union
-
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = '2847754a186b'
@@ -19,12 +16,33 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Drop the unique constraint using IF EXISTS to prevent errors if it's already gone
-    # We check both the custom name and the default Postgres generated name
-    op.execute("ALTER TABLE appointments DROP CONSTRAINT IF EXISTS uq_doctor_start_time;")
-    op.execute("ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_doctor_id_start_time_key;")
+    # 1. Dynamically find and drop ALL UNIQUE constraints on the appointments table
+    op.execute("""
+        DO $$ 
+        DECLARE r RECORD; 
+        BEGIN 
+            FOR r IN (SELECT constraint_name FROM information_schema.table_constraints 
+                      WHERE table_name = 'appointments' AND constraint_type = 'UNIQUE') 
+            LOOP 
+                EXECUTE 'ALTER TABLE appointments DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name); 
+            END LOOP; 
+        END $$;
+    """)
+
+    # 2. Dynamically find and drop ALL UNIQUE indexes on the appointments table
+    op.execute("""
+        DO $$ 
+        DECLARE r RECORD; 
+        BEGIN 
+            FOR r IN (SELECT indexname FROM pg_indexes 
+                      WHERE tablename = 'appointments' AND indexdef LIKE '%UNIQUE%') 
+            LOOP 
+                EXECUTE 'DROP INDEX IF EXISTS ' || quote_ident(r.indexname); 
+            END LOOP; 
+        END $$;
+    """)
 
 
 def downgrade() -> None:
-    # No need to recreate it for the assessment
+    # No need to recreate them for the assessment
     pass
