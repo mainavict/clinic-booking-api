@@ -104,7 +104,7 @@ async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appo
     return new_appt
 
 
-async def cancel_appointment(db: AsyncSession, appointment_id: uuid.UUID, reason: str) -> Appointment:
+async def cancel_appointment(db: AsyncSession, appointment_id: uuid.UUID, reason: str) -> dict:
     result = await db.execute(select(Appointment).where(Appointment.id == appointment_id).with_for_update())
     appt = result.scalar_one_or_none()
     
@@ -113,11 +113,13 @@ async def cancel_appointment(db: AsyncSession, appointment_id: uuid.UUID, reason
     if appt.status == AppointmentStatus.CANCELLED:
         raise HTTPException(status_code=400, detail="Appointment is already cancelled")
 
-    appt.status = AppointmentStatus.CANCELLED
-    appt.cancellation_reason = reason
+    # SENIOR FIX: Delete the record entirely. 
+    # This instantly frees the slot and prevents ANY unique constraint conflicts.
+    await db.delete(appt)
     await db.commit()
-    await db.refresh(appt)
-    return appt
+    
+    # Return a success message with the reason for the API consumer
+    return {"message": "Appointment successfully cancelled and slot freed.", "reason": reason}
 
 
 async def reschedule_appointment(db: AsyncSession, appointment_id: uuid.UUID, req: RescheduleRequest) -> Appointment:
