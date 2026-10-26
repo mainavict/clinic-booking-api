@@ -9,6 +9,14 @@ This system is designed to handle concurrent medical bookings securely, enforce 
 - **Interactive Swagger Docs**: https://clinic-booking-api-emay.onrender.com/docs
 - **GitHub Repository**: https://github.com/mainavict/clinic-booking-api
 
+## 🛠️ Core Technologies
+- **Framework:** FastAPI (Async)
+- **Database:** PostgreSQL (Neon) & SQLAlchemy 2.0 (Async)
+- **Migrations:** Alembic
+- **Validation:** Pydantic V2 & Pydantic Settings
+- **Monitoring:** Sentry (for production error tracking)
+- **CI/CD & Hosting:** GitHub Actions & Render (Dockerized)
+
 ---
 
 ## SECTION 1: SYSTEM DESIGN
@@ -46,6 +54,10 @@ The system follows a Clean Architecture approach, separating concerns for mainta
 
 6. **Security & Authentication Readiness**:
    - *Decision*: Proactively added `hashed_password` fields to both Doctor and Patient models using `bcrypt` (via `passlib`). Passwords are hashed at the service layer before being persisted, and Pydantic response schemas explicitly exclude password fields to prevent accidental data leaks.
+
+7. **Production-Grade Error Monitoring (Sentry)**:
+   - *Decision*: Integrated the Sentry SDK at the application entry point (`main.py`) to automatically capture and log all unhandled 500-level exceptions.
+   - *Trade-off*: It introduces a dependency on an external SaaS platform, but the benefit of having real-time, structured error tracking with full stack traces and request context is invaluable for debugging production issues compared to manually parsing raw cloud server logs.
 
 ---
 
