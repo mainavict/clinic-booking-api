@@ -74,10 +74,13 @@ async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appo
         )
 
     # 5. Check for Double Bookings (Concurrency safe with pessimistic locking)
+        # 5. Check for Double Bookings (Concurrency safe with pessimistic locking)
     query = select(Appointment).where(
         and_(
             Appointment.doctor_id == appt_in.doctor_id,
-            Appointment.status == AppointmentStatus.BOOKED,
+            # FIX: Block the slot if it is BOOKED *or* RESCHEDULED. 
+            # Only CANCELLED slots will pass this check and be available.
+            Appointment.status.in_([AppointmentStatus.BOOKED, AppointmentStatus.RESCHEDULED]),
             Appointment.start_time < end_time, 
             Appointment.end_time > appt_in.start_time
         )
