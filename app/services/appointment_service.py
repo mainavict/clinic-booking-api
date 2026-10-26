@@ -37,33 +37,49 @@ async def get_doctor_appointments(db: AsyncSession, doctor_id: uuid.UUID, skip: 
 
 async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appointment:
     now = datetime.now(pytz.utc)
-    
-    if appt_in.start_time < now + timedelta(hours=1):
-        raise HTTPException(status_code=400, detail="Appointments must be booked at least 1 hour in advance.")
-    
-    if appt_in.start_time > now + timedelta(days=settings.MAX_DAYS_IN_ADVANCE):
-        raise HTTPException(status_code=400, detail=f"Appointments cannot be booked more than {settings.MAX_DAYS_IN_ADVANCE} days in advance.")
-    
-    if appt_in.start_time < now + timedelta(hours=1):
-        raise HTTPException(status_code=400, detail="Appointments must be booked at least 1 hour in advance.")
-    
-    if appt_in.start_time < now:
-        raise HTTPException(status_code=400, detail="Cannot book appointments in the past.")
-
     end_time = appt_in.start_time + timedelta(minutes=30)
+    
+    # 1. Fetch doctor once
     doctor = await get_doctor(db, appt_in.doctor_id)
     
+    # 2. Check Working Hours
     work_start = datetime.combine(appt_in.start_time.date(), doctor.working_hours_start, tzinfo=pytz.utc)
     work_end = datetime.combine(appt_in.start_time.date(), doctor.working_hours_end, tzinfo=pytz.utc)
 
     if appt_in.start_time < work_start or end_time > work_end:
         raise HTTPException(status_code=400, detail="Requested time is outside doctor's working hours.")
 
+    # 3. Check Lunch Break
+    if (doctor.lunch_start < end_time) and (doctor.lunch_end > appt_in.start_time):
+        raise HTTPException(
+            status_code=400, 
+            detail="The requested time falls during the doctor's scheduled lunch break. Please select a different time slot."
+        )
+
+    # 4. Check Time Constraints
+    if appt_in.start_time < now:
+        raise HTTPException(status_code=400, detail="Cannot book appointments in the past.")
+        
+    # UPDATED: Uses the configurable setting from .env
+    if appt_in.start_time < now + timedelta(hours=settings.MIN_HOURS_IN_ADVANCE):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Appointments must be booked at least {settings.MIN_HOURS_IN_ADVANCE} hour(s) in advance."
+        )
+        
+    if appt_in.start_time > now + timedelta(days=settings.MAX_DAYS_IN_ADVANCE):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Appointments cannot be booked more than {settings.MAX_DAYS_IN_ADVANCE} days in advance."
+        )
+
+    # 5. Check for Double Bookings (Concurrency safe with pessimistic locking)
     query = select(Appointment).where(
         and_(
             Appointment.doctor_id == appt_in.doctor_id,
             Appointment.status == AppointmentStatus.BOOKED,
-            or_(and_(Appointment.start_time < end_time, Appointment.end_time > appt_in.start_time))
+            Appointment.start_time < end_time, 
+            Appointment.end_time > appt_in.start_time
         )
     ).with_for_update()
     
@@ -71,6 +87,7 @@ async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appo
     if result.scalars().all():
         raise HTTPException(status_code=409, detail="This slot is already booked.")
 
+    # 6. Create and Save
     new_appt = Appointment(
         doctor_id=appt_in.doctor_id,
         patient_id=appt_in.patient_id,
