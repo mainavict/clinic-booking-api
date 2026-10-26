@@ -1,7 +1,8 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
-from datetime import datetime, timedelta, time, timezone  # <-- Added timezone, removed pytz
+from datetime import datetime, timedelta, time
+import pytz
 from fastapi import HTTPException
 
 from app.models.appointment import Appointment
@@ -21,11 +22,11 @@ async def get_doctor(db: AsyncSession, doctor_id: uuid.UUID) -> Doctor:
 
 async def get_doctor_appointments(db: AsyncSession, doctor_id: uuid.UUID, skip: int = 0, limit: int = 20):
     """Fetches upcoming appointments for a specific doctor with pagination."""
-    now = datetime.now(timezone.utc)  # <-- Changed to timezone.utc
+    now = datetime.now(pytz.utc)
     query = select(Appointment).where(
         and_(
             Appointment.doctor_id == doctor_id,
-            Appointment.start_time >= now,
+            Appointment.start_time >= now, # Only upcoming appointments
             Appointment.status.in_([AppointmentStatus.BOOKED, AppointmentStatus.RESCHEDULED])
         )
     ).order_by(Appointment.start_time.asc()).offset(skip).limit(limit)
@@ -35,52 +36,34 @@ async def get_doctor_appointments(db: AsyncSession, doctor_id: uuid.UUID, skip: 
 
 
 async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appointment:
-    now = datetime.now(timezone.utc)  # <-- Changed to timezone.utc
-    end_time = appt_in.start_time + timedelta(minutes=30)
+    now = datetime.now(pytz.utc)
     
-    # 1. Fetch doctor once
+    if appt_in.start_time < now + timedelta(hours=1):
+        raise HTTPException(status_code=400, detail="Appointments must be booked at least 1 hour in advance.")
+    
+    if appt_in.start_time > now + timedelta(days=settings.MAX_DAYS_IN_ADVANCE):
+        raise HTTPException(status_code=400, detail=f"Appointments cannot be booked more than {settings.MAX_DAYS_IN_ADVANCE} days in advance.")
+    
+    if appt_in.start_time < now + timedelta(hours=1):
+        raise HTTPException(status_code=400, detail="Appointments must be booked at least 1 hour in advance.")
+    
+    if appt_in.start_time < now:
+        raise HTTPException(status_code=400, detail="Cannot book appointments in the past.")
+
+    end_time = appt_in.start_time + timedelta(minutes=30)
     doctor = await get_doctor(db, appt_in.doctor_id)
     
-    # 2. Check Working Hours (using timezone.utc to ensure they are offset-aware)
-    work_start = datetime.combine(appt_in.start_time.date(), doctor.working_hours_start, tzinfo=timezone.utc)
-    work_end = datetime.combine(appt_in.start_time.date(), doctor.working_hours_end, tzinfo=timezone.utc)
+    work_start = datetime.combine(appt_in.start_time.date(), doctor.working_hours_start, tzinfo=pytz.utc)
+    work_end = datetime.combine(appt_in.start_time.date(), doctor.working_hours_end, tzinfo=pytz.utc)
 
     if appt_in.start_time < work_start or end_time > work_end:
         raise HTTPException(status_code=400, detail="Requested time is outside doctor's working hours.")
 
-    # 3. Check Lunch Break (also using timezone.utc)
-    lunch_start_dt = datetime.combine(appt_in.start_time.date(), doctor.lunch_start, tzinfo=timezone.utc)
-    lunch_end_dt = datetime.combine(appt_in.start_time.date(), doctor.lunch_end, tzinfo=timezone.utc)
-
-    if (lunch_start_dt < end_time) and (lunch_end_dt > appt_in.start_time):
-        raise HTTPException(
-            status_code=400, 
-            detail="The requested time falls during the doctor's scheduled lunch break. Please select a different time slot."
-        )
-
-    # 4. Check Time Constraints
-    if appt_in.start_time < now:
-        raise HTTPException(status_code=400, detail="Cannot book appointments in the past.")
-        
-    if appt_in.start_time < now + timedelta(hours=settings.MIN_HOURS_IN_ADVANCE):
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Appointments must be booked at least {settings.MIN_HOURS_IN_ADVANCE} hour(s) in advance."
-        )
-        
-    if appt_in.start_time > now + timedelta(days=settings.MAX_DAYS_IN_ADVANCE):
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Appointments cannot be booked more than {settings.MAX_DAYS_IN_ADVANCE} days in advance."
-        )
-
-    # 5. Check for Double Bookings (Concurrency safe with pessimistic locking)
     query = select(Appointment).where(
         and_(
             Appointment.doctor_id == appt_in.doctor_id,
             Appointment.status == AppointmentStatus.BOOKED,
-            Appointment.start_time < end_time, 
-            Appointment.end_time > appt_in.start_time
+            or_(and_(Appointment.start_time < end_time, Appointment.end_time > appt_in.start_time))
         )
     ).with_for_update()
     
@@ -88,7 +71,6 @@ async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appo
     if result.scalars().all():
         raise HTTPException(status_code=409, detail="This slot is already booked.")
 
-    # 6. Create and Save
     new_appt = Appointment(
         doctor_id=appt_in.doctor_id,
         patient_id=appt_in.patient_id,
@@ -100,7 +82,6 @@ async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appo
     await db.commit()
     await db.refresh(new_appt)
     return new_appt
-
 
 async def cancel_appointment(db: AsyncSession, appointment_id: uuid.UUID, reason: str) -> Appointment:
     result = await db.execute(select(Appointment).where(Appointment.id == appointment_id).with_for_update())
@@ -117,7 +98,6 @@ async def cancel_appointment(db: AsyncSession, appointment_id: uuid.UUID, reason
     await db.refresh(appt)
     return appt
 
-
 async def reschedule_appointment(db: AsyncSession, appointment_id: uuid.UUID, req: RescheduleRequest) -> Appointment:
     result = await db.execute(select(Appointment).where(Appointment.id == appointment_id).with_for_update())
     appt = result.scalar_one_or_none()
@@ -128,23 +108,17 @@ async def reschedule_appointment(db: AsyncSession, appointment_id: uuid.UUID, re
         raise HTTPException(status_code=400, detail="Cannot reschedule a cancelled appointment")
 
     new_end_time = req.new_start_time + timedelta(minutes=30)
-    now = datetime.now(timezone.utc)  # <-- Changed to timezone.utc
+    now = datetime.now(pytz.utc)
 
-    # UPDATED: Uses the configurable setting instead of hardcoded 1
-    if req.new_start_time < now + timedelta(hours=settings.MIN_HOURS_IN_ADVANCE):
-        raise HTTPException(
-            status_code=400, 
-            detail=f"New slot must be at least {settings.MIN_HOURS_IN_ADVANCE} hour(s) in advance."
-        )
+    if req.new_start_time < now + timedelta(hours=1):
+        raise HTTPException(status_code=400, detail="New slot must be at least 1 hour in advance.")
 
-    # Simplified overlap logic (removed redundant or_(and_(...)))
     query = select(Appointment).where(
         and_(
             Appointment.doctor_id == appt.doctor_id,
             Appointment.id != appointment_id,
             Appointment.status == AppointmentStatus.BOOKED,
-            Appointment.start_time < new_end_time,
-            Appointment.end_time > req.new_start_time
+            or_(and_(Appointment.start_time < new_end_time, Appointment.end_time > req.new_start_time))
         )
     ).with_for_update()
     
@@ -159,10 +133,11 @@ async def reschedule_appointment(db: AsyncSession, appointment_id: uuid.UUID, re
     await db.refresh(appt)
     return appt
 
-
 async def get_patient_appointments(db: AsyncSession, patient_id: uuid.UUID, skip: int = 0, limit: int = 20):
-    """Fetches upcoming appointments with pagination to prevent memory exhaustion at scale."""
-    now = datetime.now(timezone.utc)  # <-- Changed to timezone.utc
+    """
+    Fetches upcoming appointments with pagination to prevent memory exhaustion at scale.
+    """
+    now = datetime.now(pytz.utc)
     
     query = select(Appointment).where(
         and_(
@@ -174,3 +149,5 @@ async def get_patient_appointments(db: AsyncSession, patient_id: uuid.UUID, skip
     
     result = await db.execute(query)
     return result.scalars().all()
+
+
