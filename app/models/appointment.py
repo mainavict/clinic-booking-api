@@ -15,4 +15,3 @@ class Appointment(Base):
     status = Column(Enum(AppointmentStatus), default=AppointmentStatus.BOOKED, nullable=False)
     cancellation_reason = Column(String, nullable=True)
     
-    # DO NOT add __table_args__ here. Keep it simple.
