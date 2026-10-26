@@ -8,8 +8,11 @@ class Settings(BaseSettings):
     
     DATABASE_URL: str
     SENTRY_DSN: Optional[str] = None
-    MAX_DAYS_IN_ADVANCE: int = 14
     
+    # Configurable Business Rules
+    MAX_DAYS_IN_ADVANCE: int = 14
+    MIN_HOURS_IN_ADVANCE: int = 1  # <-- THIS LINE MUST BE HERE
+
     # Default working hours for new doctors
     DEFAULT_WORK_HOURS_START: time = time(9, 0)
     DEFAULT_WORK_HOURS_END: time = time(17, 0)
