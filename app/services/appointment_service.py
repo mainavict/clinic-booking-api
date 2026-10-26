@@ -34,7 +34,6 @@ async def get_doctor_appointments(db: AsyncSession, doctor_id: uuid.UUID, skip: 
     result = await db.execute(query)
     return result.scalars().all()
 
-
 async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appointment:
     now = datetime.now(pytz.utc)
     end_time = appt_in.start_time + timedelta(minutes=30)
@@ -49,8 +48,11 @@ async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appo
     if appt_in.start_time < work_start or end_time > work_end:
         raise HTTPException(status_code=400, detail="Requested time is outside doctor's working hours.")
 
-    # 3. Check Lunch Break
-    if (doctor.lunch_start < end_time) and (doctor.lunch_end > appt_in.start_time):
+    # 3. Check Lunch Break (FIXED: Convert lunch times to datetime objects)
+    lunch_start_dt = datetime.combine(appt_in.start_time.date(), doctor.lunch_start, tzinfo=pytz.utc)
+    lunch_end_dt = datetime.combine(appt_in.start_time.date(), doctor.lunch_end, tzinfo=pytz.utc)
+
+    if (lunch_start_dt < end_time) and (lunch_end_dt > appt_in.start_time):
         raise HTTPException(
             status_code=400, 
             detail="The requested time falls during the doctor's scheduled lunch break. Please select a different time slot."
@@ -60,7 +62,6 @@ async def book_appointment(db: AsyncSession, appt_in: AppointmentCreate) -> Appo
     if appt_in.start_time < now:
         raise HTTPException(status_code=400, detail="Cannot book appointments in the past.")
         
-    # UPDATED: Uses the configurable setting from .env
     if appt_in.start_time < now + timedelta(hours=settings.MIN_HOURS_IN_ADVANCE):
         raise HTTPException(
             status_code=400, 
