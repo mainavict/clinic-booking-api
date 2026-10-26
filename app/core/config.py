@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # Configurable Business Rules
     MAX_DAYS_IN_ADVANCE: int = 14
-    MIN_HOURS_IN_ADVANCE: int = 1  # <-- THIS LINE MUST BE HERE
+    MIN_HOURS_IN_ADVANCE: float = 0.5  # <-- THIS LINE MUST BE HERE
 
     # Default working hours for new doctors
     DEFAULT_WORK_HOURS_START: time = time(9, 0)
